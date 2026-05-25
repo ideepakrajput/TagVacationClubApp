@@ -142,6 +142,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     // preserve ordering (React before ReactDOM before Babel before text/babel).
     const doc = new DOMParser().parseFromString(template, 'text/html');
     document.documentElement.replaceWith(doc.documentElement);
+
+    // Mobile overrides: full-screen phone, footer with prev/next at bottom.
+    const mobileStyle = document.createElement('style');
+    mobileStyle.textContent = '@media (max-width: 768px) {' +
+      'div[style*="width: 100vw"][style*="flex-direction: column"] > div:first-child { display: none !important; }' +
+      'div[style*="position: absolute"][style*="top: 80"][style*="width: 60"] { display: none !important; }' +
+      'div[style*="width: 100vw"][style*="flex-direction: column"] > div:nth-child(2) { padding: 0 !important; }' +
+      'div[style*="width: 100vw"][style*="flex-direction: column"] > div:last-child { padding: 10px 12px !important; gap: 8px !important; position: sticky !important; bottom: 0 !important; z-index: 1000 !important; }' +
+      'div[style*="width: 100vw"][style*="flex-direction: column"] > div:last-child > div:first-child { display: none !important; }' +
+      'div[style*="width: 100vw"][style*="flex-direction: column"] > div:last-child > div:nth-child(2) { display: none !important; }' +
+      'div[style*="width: 100vw"][style*="flex-direction: column"] > div:last-child > div:last-child { flex: 1 !important; justify-content: space-between !important; width: 100% !important; }' +
+      'div[style*="width: 100vw"][style*="flex-direction: column"] > div:last-child > div:last-child > button { flex: 1 !important; padding: 14px !important; font-size: 16px !important; }' +
+      '}';
+    document.head.appendChild(mobileStyle);
+
     const dead = Array.from(document.scripts);
     for (const old of dead) {
       const s = document.createElement('script');
