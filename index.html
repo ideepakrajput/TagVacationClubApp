@@ -148,6 +148,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     mobileStyle.textContent = '@media (max-width: 768px) {' +
       'div[style*="width: 100vw"][style*="flex-direction: column"] > div:first-child { display: none !important; }' +
       'div[style*="position: absolute"][style*="top: 80"][style*="width: 60"] { display: none !important; }' +
+      '[style*="position: absolute"][style*="top: 50%"][style*="width: 56px"] { display: none !important; }' +
+      'button[style*="position: absolute"][style*="top: 50%"] { display: none !important; }' +
       'div[style*="width: 100vw"][style*="flex-direction: column"] > div:nth-child(2) { padding: 0 !important; }' +
       'div[style*="width: 100vw"][style*="flex-direction: column"] > div:last-child { padding: 10px 12px !important; gap: 8px !important; position: sticky !important; bottom: 0 !important; z-index: 1000 !important; }' +
       'div[style*="width: 100vw"][style*="flex-direction: column"] > div:last-child > div:first-child { display: none !important; }' +
