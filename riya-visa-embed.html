@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visa Requirements</title>
+  <style>
+    :root {
+      --header-crop: 140px;
+      --footer-crop: 90px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; background: #faf9f5; }
+    .frame-wrap {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .frame-wrap iframe {
+      position: absolute;
+      top: calc(var(--header-crop) * -1);
+      left: 0;
+      width: 100%;
+      height: calc(100% + var(--header-crop) + var(--footer-crop));
+      border: 0;
+    }
+    .blocked {
+      display: none;
+      padding: 24px;
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #333;
+    }
+    .blocked.show { display: block; }
+    .blocked code { background: #f0eee5; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="frame-wrap">
+    <iframe
+      id="riya"
+      src="https://riya.travel/visa-information/home/visarequirements"
+      referrerpolicy="no-referrer-when-downgrade"
+      allow="clipboard-read; clipboard-write"></iframe>
+  </div>
+
+  <div class="blocked" id="blocked">
+    <h2>Embed blocked</h2>
+    <p>riya.travel refused to load in an iframe (likely due to <code>X-Frame-Options</code> or <code>Content-Security-Policy: frame-ancestors</code>).</p>
+    <p>Open it directly: <a href="https://riya.travel/visa-information/home/visarequirements" target="_blank" rel="noopener">visa requirements</a></p>
+  </div>
+
+  <script>
+    // Best-effort detection: if the iframe never fires load within 8s,
+    // assume framing was blocked. Same-origin probe is impossible (different origin).
+    const iframe = document.getElementById('riya');
+    let loaded = false;
+    iframe.addEventListener('load', () => { loaded = true; });
+    setTimeout(() => {
+      if (!loaded) document.getElementById('blocked').classList.add('show');
+    }, 8000);
+  </script>
+</body>
+</html>
