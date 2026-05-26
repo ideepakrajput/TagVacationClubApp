@@ -165,8 +165,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.head.appendChild(layoutStyle);
 
     function patchPrototypeLayout() {
-      // Root container is the 100vw/100vh flex-column shell.
-      const root = Array.from(document.querySelectorAll('div')).find(d => {
+      // Root container is the React prototype shell.
+      const root = document.querySelector('#root > div') || Array.from(document.querySelectorAll('div')).find(d => {
         const s = d.getAttribute('style') || '';
         return s.includes('100vw') && s.includes('100vh') && s.includes('flex-direction: column');
       });
@@ -174,10 +174,16 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       const [header, stage, footer] = root.children;
 
-      // Override the React-rendered 100vh — mobile browsers' URL bar eats
-      // into vh, pushing the footer below the visible viewport. dvh tracks
-      // the current visible viewport height instead.
-      root.style.height = '100dvh';
+      const vv = window.visualViewport;
+      const viewportW = vv ? vv.width : window.innerWidth;
+      const viewportH = vv ? vv.height : window.innerHeight;
+
+      // Override the React-rendered 100vh — mobile browser chrome can make
+      // that taller than the visible viewport. visualViewport is the most
+      // accurate path on Android/iOS; dvh remains a useful fallback.
+      root.style.width = viewportW + 'px';
+      root.style.height = viewportH ? (viewportH + 'px') : '100dvh';
+      root.style.maxHeight = viewportH ? (viewportH + 'px') : '100dvh';
 
       // Kill header outright.
       header.style.display = 'none';
@@ -186,25 +192,36 @@ document.addEventListener('DOMContentLoaded', async function() {
       stage.style.padding = '0';
       stage.style.flex = '1 1 auto';
       stage.style.minHeight = '0';
+      stage.style.width = '100%';
+      stage.style.alignItems = 'center';
+      stage.style.justifyContent = 'center';
 
       // Footer: compact bar, only the Back/Next buttons remain. Bottom
       // padding respects the iOS home-indicator / Android gesture-bar safe
       // area so buttons aren't half-hidden under system chrome.
-      footer.style.padding = '10px 12px calc(10px + env(safe-area-inset-bottom)) 12px';
-      footer.style.gap = '8px';
+      footer.style.padding = '8px 12px calc(8px + env(safe-area-inset-bottom)) 12px';
+      footer.style.display = 'block';
+      footer.style.width = '100%';
+      footer.style.boxSizing = 'border-box';
       footer.style.flexShrink = '0';
       for (const child of footer.children) child.style.display = 'none';
       const navGroup = footer.children[footer.children.length - 1];
       if (navGroup) {
-        navGroup.style.display = 'flex';
-        navGroup.style.flex = '1';
-        navGroup.style.justifyContent = 'space-between';
+        navGroup.style.display = 'grid';
+        navGroup.style.gridTemplateColumns = 'minmax(0, 1fr) minmax(0, 1fr)';
         navGroup.style.width = '100%';
         navGroup.style.gap = '8px';
+        navGroup.style.minWidth = '0';
+        navGroup.style.boxSizing = 'border-box';
         for (const btn of navGroup.children) {
-          btn.style.flex = '1';
-          btn.style.padding = '14px';
+          btn.style.width = '100%';
+          btn.style.minWidth = '0';
+          btn.style.boxSizing = 'border-box';
+          btn.style.padding = '13px 10px';
           btn.style.fontSize = '16px';
+          btn.style.whiteSpace = 'nowrap';
+          btn.style.overflow = 'hidden';
+          btn.style.textOverflow = 'ellipsis';
         }
       }
 
@@ -214,34 +231,68 @@ document.addEventListener('DOMContentLoaded', async function() {
       //   <div w=402*scale h=874*scale>
       //     <div transform: scale(scale) w=402 h=874>
       //       <IOSDevice w=402 h=874>
-      const phoneOuter = stage.querySelector('div[style*="width:"][style*="transition"]');
-      const phoneInner = phoneOuter && phoneOuter.querySelector('div[style*="transform: scale"]');
+      const phoneInner = Array.from(stage.querySelectorAll('div')).find(d => {
+        const st = d.style;
+        return st.transform && Math.round(parseFloat(st.width)) === 402 && Math.round(parseFloat(st.height)) === 874;
+      });
+      const phoneOuter = phoneInner && phoneInner.parentElement;
       if (phoneOuter && phoneInner) {
-        const stageH = stage.clientHeight - 16;
-        const stageW = stage.clientWidth - 16;
+        const footerH = footer.getBoundingClientRect().height || 0;
+        const availableH = Math.max(0, viewportH - footerH);
+        stage.style.height = availableH + 'px';
+        stage.style.maxHeight = availableH + 'px';
+
+        const stageRect = stage.getBoundingClientRect();
+        const stageH = Math.max(0, Math.min(stageRect.height || availableH, availableH) - 6);
+        const stageW = Math.max(0, Math.min(stageRect.width || viewportW, viewportW) - 4);
         const s = Math.min(stageH / 874, stageW / 402);
         phoneOuter.style.width = (402 * s) + 'px';
         phoneOuter.style.height = (874 * s) + 'px';
+        phoneOuter.style.margin = '0 auto';
         phoneInner.style.transform = 'scale(' + s + ')';
+      } else {
+        return false;
       }
       return true;
     }
 
-    // React mounts async. Try until we find the layout, then keep watching
-    // for re-renders (screen changes re-create the phone wrapper).
+    // React mounts async + keeps fighting us. Its auto-fit useEffect computes
+    // scale assuming a 480px sidebar; on a 360px mobile that's negative and
+    // clamps to 0.45, so the phone renders as a postage stamp. Keep repairing
+    // through the mount window, then observe later style changes too.
     let tries = 0;
     const poll = setInterval(() => {
-      if (patchPrototypeLayout() || ++tries > 40) clearInterval(poll);
+      patchPrototypeLayout();
+      if (++tries > 180) clearInterval(poll);
     }, 100);
-    window.addEventListener('resize', patchPrototypeLayout);
-    // Debounce via rAF — React re-renders fire many child-list mutations
-    // per screen change; we only need one patch pass per frame.
+    function repairSoon() {
+      setTimeout(patchPrototypeLayout, 0);
+      setTimeout(patchPrototypeLayout, 80);
+      setTimeout(patchPrototypeLayout, 240);
+    }
+    window.addEventListener('resize', () => {
+      // Delay so React's own resize handler runs first, then we overwrite it.
+      repairSoon();
+    });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', repairSoon);
+      window.visualViewport.addEventListener('scroll', repairSoon);
+    }
     let scheduled = false;
-    new MutationObserver(() => {
-      if (scheduled) return;
+    let patching = false;
+    const observer = new MutationObserver(() => {
+      if (scheduled || patching) return;
       scheduled = true;
-      requestAnimationFrame(() => { scheduled = false; patchPrototypeLayout(); });
-    }).observe(document.body, { childList: true, subtree: true });
+      requestAnimationFrame(() => {
+        scheduled = false;
+        patching = true;
+        try { patchPrototypeLayout(); } finally { patching = false; }
+      });
+    });
+    observer.observe(document.body, {
+      childList: true, subtree: true,
+      attributes: true, attributeFilter: ['style'],
+    });
 
     const dead = Array.from(document.scripts);
     for (const old of dead) {
