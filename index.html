@@ -147,6 +147,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Two-part fix: (1) CSS to hide chrome, (2) JS patcher that overrides the
     // React-computed phone scale (which is capped at 1 and subtracts a
     // header/sidebar margin that no longer exists).
+    // viewport-fit=cover is required for env(safe-area-inset-*) to return
+    // non-zero on iOS notch/home-indicator devices and Android gesture bars.
+    if (!document.querySelector('meta[name="viewport"]')) {
+      const vp = document.createElement('meta');
+      vp.name = 'viewport';
+      vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+      document.head.appendChild(vp);
+    }
+
     const layoutStyle = document.createElement('style');
     layoutStyle.textContent =
       'html, body { margin: 0 !important; padding: 0 !important; overflow: hidden !important; height: 100% !important; }' +
@@ -165,6 +174,11 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       const [header, stage, footer] = root.children;
 
+      // Override the React-rendered 100vh — mobile browsers' URL bar eats
+      // into vh, pushing the footer below the visible viewport. dvh tracks
+      // the current visible viewport height instead.
+      root.style.height = '100dvh';
+
       // Kill header outright.
       header.style.display = 'none';
 
@@ -173,8 +187,10 @@ document.addEventListener('DOMContentLoaded', async function() {
       stage.style.flex = '1 1 auto';
       stage.style.minHeight = '0';
 
-      // Footer: compact bar, only the Back/Next buttons remain.
-      footer.style.padding = '10px 12px';
+      // Footer: compact bar, only the Back/Next buttons remain. Bottom
+      // padding respects the iOS home-indicator / Android gesture-bar safe
+      // area so buttons aren't half-hidden under system chrome.
+      footer.style.padding = '10px 12px calc(10px + env(safe-area-inset-bottom)) 12px';
       footer.style.gap = '8px';
       footer.style.flexShrink = '0';
       for (const child of footer.children) child.style.display = 'none';
